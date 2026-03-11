@@ -303,7 +303,12 @@ func (deps *RouterDeps) evaluateFlagHandler() http.HandlerFunc {
 
 		// Get user context for flag evaluation (supports percentage rollouts)
 		var userID string
-		if userCtx := GetUserContext(r.Context()); userCtx != nil {
+
+		// First, check for user_id in query parameters
+		if userID = r.URL.Query().Get("user_id"); userID != "" {
+			// user_id from query parameter takes precedence
+		} else if userCtx := GetUserContext(r.Context()); userCtx != nil {
+			// Fall back to header-based user context
 			userID = userCtx.UserID
 		}
 
@@ -315,8 +320,9 @@ func (deps *RouterDeps) evaluateFlagHandler() http.HandlerFunc {
 
 		writeJSON(w, http.StatusOK, Response{
 			Success: true,
-			Data: map[string]bool{
+			Data: map[string]interface{}{
 				"enabled": enabled,
+				"user_id": userID,
 			},
 		})
 	}
