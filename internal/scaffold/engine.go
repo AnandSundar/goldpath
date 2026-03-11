@@ -96,12 +96,6 @@ func (e *Engine) Generate(ctx context.Context, req GenerateRequest) (*GenerateRe
 }
 
 func (e *Engine) executeTemplate(tmpl *template.Template, name string, vars map[string]string) (string, error) {
-	// Create a template with the specific file name
-	t, err := tmpl.Clone()
-	if err != nil {
-		return "", err
-	}
-
 	// Add default values if not provided
 	if vars == nil {
 		vars = make(map[string]string)
@@ -113,7 +107,32 @@ func (e *Engine) executeTemplate(tmpl *template.Template, name string, vars map[
 		vars["ModuleName"] = "github.com/example/my-project"
 	}
 
-	// Execute template
+	// For go.mod file, generate proper content instead of using template
+	if name == "go.mod" {
+		return fmt.Sprintf("module %s\n\ngo 1.22\n", vars["ModuleName"]), nil
+	}
+
+	// For repository.go, use repository-specific template
+	if name == "repository.go" {
+		t, err := template.New("repository").Parse(repositoryTemplate)
+		if err != nil {
+			return "", err
+		}
+		var buf strings.Builder
+		err = t.Execute(&buf, vars)
+		if err != nil {
+			return "", err
+		}
+		return buf.String(), nil
+	}
+
+	// Create a template with the specific file name
+	t, err := tmpl.Clone()
+	if err != nil {
+		return "", err
+	}
+
+	// Execute template for other files
 	var buf strings.Builder
 	err = t.Execute(&buf, vars)
 	if err != nil {
@@ -209,10 +228,7 @@ func main() {
 
 import (
 	"context"
-	"database/sql"
 	"log"
-
-	_ "github.com/lib/pq"
 )
 
 type Repository interface {
@@ -258,45 +274,50 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 	return s.repo.Delete(ctx, id)
 }
 
+func main() {
+	log.Println("Starting {{.ProjectName}} service")
+}
+`
+
+	repositoryTemplate = `package main
+
+import (
+	"context"
+)
+
+// Model and Repository are defined in service.go
+
 type PostgresRepository struct {
-	db *sql.DB
+	connStr string
 }
 
 func NewPostgresRepository(connStr string) (*PostgresRepository, error) {
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		return nil, err
-	}
-	return &PostgresRepository{db: db}, nil
+	return &PostgresRepository{connStr: connStr}, nil
 }
 
 func (r *PostgresRepository) Get(ctx context.Context, id string) (*Model, error) {
-	// Implementation
+	// TODO: Implement database query
 	return nil, nil
 }
 
 func (r *PostgresRepository) List(ctx context.Context) ([]*Model, error) {
-	// Implementation
+	// TODO: Implement database query
 	return nil, nil
 }
 
 func (r *PostgresRepository) Create(ctx context.Context, m *Model) error {
-	// Implementation
+	// TODO: Implement database insert
 	return nil
 }
 
 func (r *PostgresRepository) Update(ctx context.Context, m *Model) error {
-	// Implementation
+	// TODO: Implement database update
 	return nil
 }
 
 func (r *PostgresRepository) Delete(ctx context.Context, id string) error {
-	// Implementation
+	// TODO: Implement database delete
 	return nil
-}
-
-func main() {
-	log.Println("Starting {{.ProjectName}} service")
 }
 `
 
