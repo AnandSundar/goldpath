@@ -312,6 +312,9 @@ func (deps *RouterDeps) evaluateFlagHandler() http.HandlerFunc {
 			userID = userCtx.UserID
 		}
 
+		// Debug log
+		deps.Logger.Info("Evaluating flag", "key", key, "user_id", userID)
+
 		enabled, err := deps.FlagService.IsEnabled(r.Context(), key, userID)
 		if err != nil {
 			writeError(w, http.StatusNotFound, err.Error())
