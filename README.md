@@ -2,21 +2,8 @@
 
 goldpath is a small but production-style internal developer platform that lets any engineer create a fully wired service (code, CI/CD, Kubernetes, observability, and feature flags) in minutes instead of days.
 
-## Visual Overview
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/bc35a2a5-5b8e-4340-85e9-112f0041fe29" />
 
-```mermaid
-graph TD
-    A[Developer runs goldpath new <service-name>] --> B[Generate: Go service + Dockerfile]
-    A --> C[Generate: CI/CD pipeline (GitHub Actions)]
-    A --> D[Generate: Kubernetes deployment]
-    A --> E[Generate: Health checks & metrics]
-    B --> F[Service runs in Kubernetes cluster]
-    C --> F
-    D --> F
-    E --> F
-    F --> G[Metrics + Logs available]
-    F --> H[Feature flags ready to use]
-```
 
 | Capability               | What it gives a team                          | What it shows about me                          |
 |--------------------------|-----------------------------------------------|-------------------------------------------------|
