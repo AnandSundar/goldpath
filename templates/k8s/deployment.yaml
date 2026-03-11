@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{.Namespace}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{.ProjectName}}-config
+  namespace: {{.Namespace}}
+data:
+  PORT: "{{.Port}}"
+  HOST: "0.0.0.0"
+  {{- range $key, $value := .EnvVars}}
+  {{ $key }}: "{{ $value }}"
+  {{- end}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{.ProjectName}}
+  namespace: {{.Namespace}}
+  labels:
+    app: {{.ProjectName}}
+    version: {{.Version}}
+spec:
+  replicas: {{.Replicas}}
+  selector:
+    matchLabels:
+      app: {{.ProjectName}}
+  template:
+    metadata:
+      labels:
+        app: {{.ProjectName}}
+        version: {{.Version}}
+    spec:
+      containers:
+      - name: {{.ProjectName}}
+        image: {{.ImageRegistry}}/{{.ProjectName}}:{{.Version}}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: {{.Port}}
+          name: http
+          protocol: TCP
+        envFrom:
+        - configMapRef:
+            name: {{.ProjectName}}-config
+        {{- if .HasSecrets}}
+        env:
+        {{- range $secret := .Secrets}}
+        - name: {{ $secret.Name }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ $secret.Name }}
+              key: {{ $secret.Key }}
+        {{- end}}
+        {{- end}}
+        resources:
+          requests:
+            memory: "{{.MemoryRequest}}"
+            cpu: "{{.CpuRequest}}"
+          limits:
+            memory: "{{.MemoryLimit}}"
+            cpu: "{{.CpuLimit}}"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{.Port}}
+          initialDelaySeconds: {{.LivenessInitialDelay}}
+          periodSeconds: {{.LivenessPeriodSeconds}}
+          timeoutSeconds: {{.LivenessTimeoutSeconds}}
+          failureThreshold: {{.LivenessFailureThreshold}}
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: {{.Port}}
+          initialDelaySeconds: {{.ReadinessInitialDelay}}
+          periodSeconds: {{.ReadinessPeriodSeconds}}
+          timeoutSeconds: {{.ReadinessTimeoutSeconds}}
+          failureThreshold: {{.ReadinessFailureThreshold}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{.ProjectName}}
+  namespace: {{.Namespace}}
+spec:
+  type: {{.ServiceType}}
+  selector:
+    app: {{.ProjectName}}
+  ports:
+  - port: 80
+    targetPort: {{.Port}}
+    protocol: TCP
+    name: http
+{{- if .EnableMetrics}}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{.ProjectName}}
+  namespace: {{.Namespace}}
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: {{.ProjectName}}
+  endpoints:
+  - port: http
+    path: /metrics
+{{- end}}
