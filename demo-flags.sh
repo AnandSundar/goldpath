@@ -2,6 +2,7 @@
 
 # goldpath Feature Flag Demo Script
 # This script demonstrates the 10% rollout feature of goldpath
+# Note: Works without jq - uses grep/sed instead
 
 echo "============================================"
 echo "  goldpath Feature Flag Rollout Demo"
@@ -12,11 +13,17 @@ echo ""
 BASE_URL="http://localhost:8080"
 FLAG_KEY="new-payment-flow"
 
-# Colors for output
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# Colors for output (if terminal supports it)
+GREEN=''
+RED=''
+YELLOW=''
+NC=''
+if [ -t 1 ]; then
+    GREEN='\033[0;32m'
+    RED='\033[0;31m'
+    YELLOW='\033[1;33m'
+    NC='\033[0m'
+fi
 
 echo "Step 1: Creating a feature flag with 10% rollout..."
 echo ""
@@ -30,8 +37,9 @@ curl -s -X POST "$BASE_URL/api/v1/flags" \
     "description": "Redesigned payment processing experience",
     "enabled": true,
     "rollout": 10.0
-  }' | jq '.'
+  }'
 
+echo ""
 echo ""
 echo "Step 2: Testing rollout with 20 different users..."
 echo "We expect approximately 10% (2 out of 20) to have the feature enabled."
@@ -41,15 +49,15 @@ echo "-----------------------------------------------"
 enabled_count=0
 disabled_count=0
 
-for i in {1..20}; do
+for i in $(seq 1 20); do
   user_id="user$i"
   
   # Call the evaluate endpoint with user_id query parameter
   result=$(curl -s "$BASE_URL/api/v1/flags/$FLAG_KEY/evaluate?user_id=$user_id")
   
-  # Extract enabled value
-  enabled=$(echo "$result" | jq -r '.data.enabled')
-  returned_user_id=$(echo "$result" | jq -r '.data.user_id')
+  # Extract enabled value using grep/sed instead of jq
+  enabled=$(echo "$result" | grep -o '"enabled":[^,}]*' | sed 's/"enabled"://')
+  returned_user_id=$(echo "$result" | grep -o '"user_id":"[^"]*' | sed 's/"user_id":"//')
   
   if [ "$enabled" = "true" ]; then
     echo -e "User $returned_user_id: ${GREEN}ENABLED${NC} ✓"
@@ -82,7 +90,7 @@ fi
 echo ""
 echo "Step 4: Viewing all flags..."
 echo ""
-curl -s "$BASE_URL/api/v1/flags" | jq '.'
+curl -s "$BASE_URL/api/v1/flags"
 
 echo ""
 echo "Step 5: Checking metrics endpoint..."
@@ -95,8 +103,8 @@ echo "  Demo Complete!"
 echo "============================================"
 echo ""
 echo "You can also try:"
-echo "  - Updating rollout: curl -X PUT '$BASE_URL/api/v1/flags/$FLAG_KEY' \\"
-echo "      -H 'Content-Type: application/json' \\"
+echo "  - Updating rollout: curl -X PUT '$BASE_URL/api/v1/flags/$FLAG_KEY' \"
+echo "      -H 'Content-Type: application/json' \"
 echo "      -d '{\"rollout\": 50.0}'"
 echo ""
 echo "  - Toggling flag: curl -X PATCH '$BASE_URL/api/v1/flags/$FLAG_KEY/toggle'"
